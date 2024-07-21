@@ -1,5 +1,6 @@
 import streamlit as st
 from web3 import Web3
+import json
 
 # Configuração da conexão com a blockchain (por exemplo, Ganache local)
 w3 = Web3(Web3.HTTPProvider("http://127.0.0.1:8545"))
@@ -253,48 +254,66 @@ contract_address = "0x6824074FE1699dC437424f93a023058f99D0C2CE"
 # Conectar ao contrato
 contract = w3.eth.contract(address=contract_address, abi=contract_abi)
 
+# Função para conectar a carteira MetaMask
+def connect_wallet():
+    try:
+        user_address = w3.eth.accounts[2]
+        st.session_state['user_address'] = user_address
+        st.success(f"Conectado: {user_address}")
+    except Exception as e:
+        st.error(f"Erro ao conectar: {e}")
+
 # Interface Streamlit
 st.title("MCAToken Dashboard")
 
 # Conectar com MetaMask
 st.markdown("### Conecte-se à sua carteira MetaMask")
-user_address = st.text_input("Endereço da Carteira")
 
-# Verificar saldo de tokens
-if st.button("Verificar Saldo"):
-    balance = contract.functions.balanceOf(user_address).call()
-    st.write(f"Saldo de Tokens: {balance}")
+# Botão de Conectar
+if 'user_address' not in st.session_state:
+    if st.button("Conectar"):
+        connect_wallet()
+else:
+    st.success(f"Conectado: {st.session_state['user_address']}")
 
-# Transferência de tokens
-st.markdown("### Transferir Tokens")
-to_address = st.text_input("Endereço de Destino")
-amount = st.number_input("Quantidade de Tokens", min_value=0)
-if st.button("Transferir"):
-    tx_hash = contract.functions.transfer(to_address, amount).transact({'from': user_address})
-    receipt = w3.eth.waitForTransactionReceipt(tx_hash)
-    st.write(f"Transferência de {amount} tokens para {to_address} realizada com sucesso. Tx Hash: {tx_hash.hex()}")
+# Entrada do endereço da carteira
+user_address = st.session_state.get('user_address', '')
+if user_address:
+    # Verificar saldo de tokens
+    if st.button("Verificar Saldo"):
+        balance = contract.functions.balanceOf(user_address).call()
+        st.write(f"Saldo de Tokens: {balance}")
 
-# Aprovar gasto de tokens
-st.markdown("### Aprovar Gasto de Tokens")
-spender_address = st.text_input("Endereço do Spender")
-approve_amount = st.number_input("Quantidade de Tokens para Aprovar", min_value=0)
-if st.button("Aprovar"):
-    tx_hash = contract.functions.approve(spender_address, approve_amount).transact({'from': user_address})
-    receipt = w3.eth.waitForTransactionReceipt(tx_hash)
-    st.write(f"Aprovação de {approve_amount} tokens para {spender_address} realizada com sucesso. Tx Hash: {tx_hash.hex()}")
+    # Transferência de tokens
+    st.markdown("### Transferir Tokens")
+    to_address = st.text_input("Endereço de Destino")
+    amount = st.number_input("Quantidade de Tokens", min_value=0)
+    if st.button("Transferir"):
+        tx_hash = contract.functions.transfer(to_address, amount).transact({'from': user_address})
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        st.write(f"Transferência de {amount} tokens para {to_address} realizada com sucesso. Tx Hash: {tx_hash.hex()}")
 
-# Verificar Allowance
-st.markdown("### Verificar Allowance")
-check_spender_address = st.text_input("Endereço do Spender para Verificação")
-if st.button("Verificar Allowance"):
-    allowance = contract.functions.allowance(user_address, check_spender_address).call()
-    st.write(f"Allowance para {check_spender_address}: {allowance}")
+    # Aprovar gasto de tokens
+    st.markdown("### Aprovar Gasto de Tokens")
+    spender_address = st.text_input("Endereço do Spender")
+    approve_amount = st.number_input("Quantidade de Tokens para Aprovar", min_value=0)
+    if st.button("Aprovar"):
+        tx_hash = contract.functions.approve(spender_address, approve_amount).transact({'from': user_address})
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        st.write(f"Aprovação de {approve_amount} tokens para {spender_address} realizada com sucesso. Tx Hash: {tx_hash.hex()}")
 
-# Gastar tokens aprovados
-st.markdown("### Gastar Tokens Aprovados")
-from_address = st.text_input("Endereço do Owner")
-spend_amount = st.number_input("Quantidade de Tokens para Gastar", min_value=0)
-if st.button("Gastar"):
-    tx_hash = contract.functions.transferFrom(from_address, user_address, spend_amount).transact({'from': user_address})
-    receipt = w3.eth.waitForTransactionReceipt(tx_hash)
-    st.write(f"Gasto de {spend_amount} tokens do {from_address} para {user_address} realizado com sucesso. Tx Hash: {tx_hash.hex()}")
+    # Verificar Allowance
+    st.markdown("### Verificar Allowance")
+    check_spender_address = st.text_input("Endereço do Spender para Verificação")
+    if st.button("Verificar Allowance"):
+        allowance = contract.functions.allowance(user_address, check_spender_address).call()
+        st.write(f"Allowance para {check_spender_address}: {allowance}")
+
+    # Gastar tokens aprovados
+    st.markdown("### Gastar Tokens Aprovados")
+    from_address = st.text_input("Endereço do Owner")
+    spend_amount = st.number_input("Quantidade de Tokens para Gastar", min_value=0)
+    if st.button("Gastar"):
+        tx_hash = contract.functions.transferFrom(from_address, user_address, spend_amount).transact({'from': user_address})
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+        st.write(f"Gasto de {spend_amount} tokens do {from_address} para {user_address} realizado com sucesso. Tx Hash: {tx_hash.hex()}")
